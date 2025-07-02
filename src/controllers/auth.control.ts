@@ -79,7 +79,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: config.env=== 'production', // Use secure cookies in production
+            secure: config.env === 'production', // Use secure cookies in production
             sameSite: 'strict', // Adjust as necessary
             maxAge: 24 * 60 * 60 * 1000, // 1 day
         });

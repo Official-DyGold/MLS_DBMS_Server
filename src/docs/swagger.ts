@@ -15,7 +15,7 @@ export const swaggerOptions: swaggerJSDoc.Options = {
                 description: 'Development server',
             },
             {
-                url: 'https://api.example.com/v1', // Example server URL
+                url: 'https://mls-dbms-server.onrender.com', // Example server URL
                 description: 'Production server',
             },
         ],
