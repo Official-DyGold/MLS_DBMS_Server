@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { User, UserAttributes } from "../models/user.model";
+import { User } from "../models/user.model";
 import { config } from "../config";
-import customResponse from "./../utils/custom.reponse";
+import customResponse from "../utils/custom.response";
 import { isValidOTP, isValidEmail, isValidPassword, generateOTP, isOTPExpired } from './../utils/all.validator';
 import { sendWelcomeEmail, sendResetPasswordEmail, sendVerificationEmail } from "../services/email.service";
 
@@ -12,12 +12,6 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET is not defined");
 
 const JWT_REFRESH_SECRET = config.jwtRefreshSecret;
 if (!JWT_REFRESH_SECRET) throw new Error("JWT_REFRESH_SECRET is not defined");
-
-declare module 'express-serve-static-core' {
-    interface Request {
-        user?: UserAttributes
-    }
-}
 
 /* 
 Create a new user (Admin, HOD, Lecturer, Student)
@@ -140,7 +134,7 @@ export const resentOTP = async (req: Request, res: Response): Promise<void> => {
         await user.save();
 
         await sendVerificationEmail(email, otp, otpExpiryTime);
-
+        
         const otpToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET as string, { expiresIn: '15m' });
        
         customResponse.successResponse(res, 'OTP sent successfully', 200,
@@ -190,7 +184,7 @@ export const OTPForPasswordReset = async (req: Request, res: Response): Promise<
 
         const otpToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET as string, { expiresIn: '15m' });
         
-        customResponse.successResponse(res, 'OTP sent succesfully', 200,
+        customResponse.successResponse(res, 'OTP sent successfully', 200,
             {
                 otpToken: otpToken
             }
@@ -226,7 +220,12 @@ export const verifyOTP = async(req: Request, res: Response): Promise<void> => {
         }
 
         let email: string;
-        const decoded = jwt.verify(otpToken, JWT_SECRET!) as { email: string };
+        const secret = JWT_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(otpToken, secret) as { email: string };
         email = decoded.email
 
         const user = await User.findOne({ where: { email } })
@@ -292,7 +291,12 @@ export const verifyOTPForPassword = async(req: Request, res: Response): Promise<
         }
 
         let email: string;
-        const decoded = jwt.verify(otpToken, JWT_SECRET!) as { email: string };
+        const secret = JWT_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(otpToken, secret) as { email: string };
         email = decoded.email
 
         const user = await User.findOne({ where: { email } })
@@ -357,7 +361,12 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         }
 
         let email: string;
-        const decoded = jwt.verify(otpToken, JWT_SECRET!) as { email: string };
+        const secret = JWT_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(otpToken, secret) as { email: string };
         email = decoded.email
 
         const user = await User.findOne({ where: { email } })
@@ -385,44 +394,35 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     }
 }
 
-/* 
-This Endpoint Logout User 
-*/
-export const logoutUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
-
-    /* if (refreshToken) {
-      // Optional: delete refresh token from DB
-      await RefreshToken.destroy({ where: { token: refreshToken } });
-    } */
-
-    // Clear the cookie
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-    });
-
-    customResponse.successResponse(res, 'Logged out successfully', 200, {});
-  } catch (error) {
-    customResponse.errorResponse(res, `Server Error: ${error}`, 500, {});
-    return;
-  }
-};
-
 /**
  * Reset password endpoint when user is logged in
  * This endpoint allows a user to change their password while logged in.
  */
 export const changePasswordWhenLoggedIn = async (req: Request, res: Response): Promise<void> => {
-    const userId = req.user?.id; // Assuming user ID is stored in req.user after authentication
-    const { currentPassword, newPassword, confirmNewPassword } = req.body;
+    const authHeader = req.headers.authorization;
 
-    if (!userId) {
-        customResponse.errorResponse(res, 'User not valid', 401, {});
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        customResponse.errorResponse(res, 'Authorization header is missing or invalid', 401, {});
         return;
     }
+
+    const token = authHeader.split(" ")[1];
+    let userId: string;
+
+    try {
+        const secret = JWT_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(token, secret) as { id: string };
+        userId = decoded.id;
+    } catch (err) {
+        customResponse.errorResponse(res, 'Invalid or expired token', 401, {});
+        return;
+    }
+
+    const { currentPassword, newPassword, confirmNewPassword } = req.body;
 
     if (!currentPassword || !newPassword || !confirmNewPassword) {
         customResponse.errorResponse(res, 'All fields are required', 400, []);
@@ -506,7 +506,12 @@ export const userLogin = async (req: Request, res: Response): Promise<void> => {
 
             await sendVerificationEmail(email, otp, otpExpiryTime)
 
-            const otpToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET as string, { expiresIn: '15m' });
+            const secret = JWT_SECRET;
+            if (!secret) {
+                customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+                return;
+            }
+            const otpToken = jwt.sign({ id: user.id, email: user.email }, secret as string, { expiresIn: '15m' });
        
             customResponse.successResponse(res, 'OTP sent successfully', 200,
                 {
@@ -541,3 +546,172 @@ export const userLogin = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 }
+
+/**
+ * Verify user role using access token and return user's role
+ */
+export const getUserRole = async (req: Request, res: Response): Promise<void> => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        customResponse.errorResponse(res, 'Authorization header is missing or invalid', 401, []);
+        return;
+    }
+
+    const accessToken = authHeader.split(' ')[1];
+    if (!accessToken) {
+        customResponse.errorResponse(res, 'Access token is missing', 400, []);
+        return;
+    }
+
+    try {
+        const secret = JWT_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(accessToken, secret) as { id: number, email: string };
+        const user = await User.findByPk(decoded.id);
+
+        if (!user) {
+            customResponse.errorResponse(res, 'User not found', 404, []);
+            return;
+        }
+
+        const roles = {
+            isAdmin: user.isAdmin,
+            isHOD: user.isHOD,
+            isLecturer: user.isLecturer,
+            isStudent: user.isStudent,
+            isActive: user.isActive,
+        };
+
+        customResponse.successResponse(res, 'User role fetched successfully', 200, { roles });
+    } catch (error) {
+        customResponse.errorResponse(res, `Invalid or expired token: ${error}`, 401, []);
+    }
+};
+
+/**
+ * Update user profile and update the updatedAt timestamp
+ */
+export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        customResponse.errorResponse(res, 'Authorization header is missing or invalid', 401, []);
+        return;
+    }
+
+    const accessToken = authHeader.split(' ')[1];
+    if (!accessToken) {
+        customResponse.errorResponse(res, 'Access token is missing', 400, []);
+        return;
+    }
+
+    try {
+        const secret = JWT_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(accessToken, secret) as { id: number, email: string };
+        const user = await User.findByPk(decoded.id);
+
+        if (!user) {
+            customResponse.errorResponse(res, 'User not found', 404, []);
+            return;
+        }
+
+        // Only allow certain fields to be updated
+        const allowedFields = [
+            'firstName',
+            'middleName',
+            'lastName',
+            'userId',
+            'email',
+        ];
+        let updated = false;
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                (user as any)[field] = req.body[field];
+                updated = true;
+            }
+        }
+
+        if (!updated) {
+            customResponse.errorResponse(res, 'No valid fields provided for update', 400, []);
+            return;
+        }
+
+        await user.save(); // updatedAt will be set automatically by Sequelize
+
+        customResponse.successResponse(res, 'User details updated successfully', 200, {
+            user: {
+                id: user.id,
+                firstName: user.firstName,
+                middleName: user.middleName,
+                lastName: user.lastName,
+                userId: user.userId,
+                email: user.email,
+                updatedAt: user.updatedAt
+            }
+        });
+    } catch (error) {
+        customResponse.errorResponse(res, `Server Error: ${error}`, 500, {});
+    }
+};
+
+/**
+ * Get user details using access token
+ */
+export const getUserDetails = async (req: Request, res: Response): Promise<void> => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        customResponse.errorResponse(res, 'Authorization header is missing or invalid', 401, []);
+        return;
+    }
+
+    const accessToken = authHeader.split(' ')[1];
+    if (!accessToken) {
+        customResponse.errorResponse(res, 'Access token is missing', 400, []);
+        return;
+    }
+
+    try {
+        const secret = JWT_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(accessToken, secret) as { id: number, email: string };
+        const user = await User.findByPk(decoded.id);
+
+        if (!user) {
+            customResponse.errorResponse(res, 'User not found', 404, []);
+            return;
+        }
+
+        const roles: Record<string, boolean> = {};
+        if (user.isAdmin) roles.isAdmin = true;
+        if (user.isHOD) roles.isHOD = true;
+        if (user.isLecturer) roles.isLecturer = true;
+        if (user.isStudent) roles.isStudent = true;
+
+        customResponse.successResponse(res, 'User details fetched successfully', 200, {
+            user: {
+                id: user.id,
+                firstName: user.firstName,
+                middleName: user.middleName,
+                lastName: user.lastName,
+                userId: user.userId,
+                email: user.email,
+                ...roles, // Only true roles will be included
+                isActive: user.isActive,
+                isVerified: user.isVerified,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt
+            }
+        });
+    } catch (error) {
+        customResponse.errorResponse(res, `Invalid or expired token: ${error}`, 401, []);
+    }
+};

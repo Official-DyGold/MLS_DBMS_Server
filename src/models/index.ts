@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize-typescript';
 import { User } from './user.model';
 import { config } from '../config';
+import { Post } from './post.model';
 
 export const sequelize = new Sequelize({
     dialect: 'postgres',
@@ -9,7 +10,7 @@ export const sequelize = new Sequelize({
     username: config.db.user,
     password: config.db.password,
     database: config.db.database,
-    models: [User], // Add your models here
+    models: [User, Post], // Add your models here
     logging: false, // Disable logging for cleaner output
     dialectOptions: {
         ssl: {

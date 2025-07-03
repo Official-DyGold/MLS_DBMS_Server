@@ -6,7 +6,6 @@ import {
     Default,
     PrimaryKey
 } from 'sequelize-typescript';
-import { Col } from 'sequelize/types/utils';
 
 export interface UserAttributes {
     id?: string;

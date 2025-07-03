@@ -6,9 +6,11 @@ import {
     verifyOTP,
     verifyOTPForPassword,
     changePassword,
-    logoutUser,
     userLogin,
-    changePasswordWhenLoggedIn
+    changePasswordWhenLoggedIn,
+    getUserRole,
+    updateUserProfile,
+    getUserDetails,
 } from '../controllers/auth.control'
 import authMiddleware from '../middlewares/auth.middleware'
 import { otpRateLimiter, loginOrRegisterRateLimiter } from '../middlewares/rate.limiter'
@@ -23,7 +25,9 @@ router.post('/verify-otp', authMiddleware, verifyOTP)
 router.post('/verify-password-otp', authMiddleware, verifyOTPForPassword)
 router.post('/change-password', authMiddleware, changePassword)
 router.post('/change-password-logged-in', authMiddleware, changePasswordWhenLoggedIn)
-router.post('/logout', logoutUser)
+router.get('/get-user-role', authMiddleware, getUserRole)
+router.get('/user/get-user-details', authMiddleware, getUserDetails)
+router.put('/user/update-profile', authMiddleware, updateUserProfile)
 
 /**
  * @swagger
@@ -356,29 +360,6 @@ router.post('/logout', logoutUser)
 
 /**
  * @swagger
- * /api/auth/logout:
- *   post:
- *     summary: Logout user
- *     description: Logs out the user by clearing the refresh token cookie.
- *     tags:
- *       - Authentication
- *     responses:
- *       200:
- *         description: Logged out successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Logged out successfully
- *       500:
- *         description: Server error
- */
-
-/**
- * @swagger
  * /auth/change-password-logged-in:
  *   post:
  *     summary: Change password for logged-in user
@@ -503,5 +484,230 @@ router.post('/logout', logoutUser)
  *       500:
  *         description: Server error
  */
+
+/**
+ * @swagger
+ * /api/auth/get-user-role:
+ *   get:
+ *     summary: Get authenticated user roles
+ *     description: Retrieves the roles of the authenticated user using the access token provided in the Authorization header.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User role fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User role fetched successfully
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     roles:
+ *                       type: object
+ *                       properties:
+ *                         isAdmin:
+ *                           type: boolean
+ *                           example: true
+ *                         isHOD:
+ *                           type: boolean
+ *                           example: false
+ *                         isLecturer:
+ *                           type: boolean
+ *                           example: true
+ *                         isStudent:
+ *                           type: boolean
+ *                           example: false
+ *                         isActive:
+ *                           type: boolean
+ *                           example: true
+ *       400:
+ *         description: Access token is missing
+ *       401:
+ *         description: Authorization header is missing or invalid / Token invalid or expired
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/auth/user/update-profile:
+ *   put:
+ *     summary: Update user profile details
+ *     description: Allows an authenticated user to update their profile information such as first name, middle name, last name, user ID, and email. Only specified fields can be updated.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       description: Fields to update (at least one required)
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               middleName:
+ *                 type: string
+ *                 example: M
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               userId:
+ *                 type: string
+ *                 example: A12345
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john.doe@example.com
+ *     responses:
+ *       200:
+ *         description: User details updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User details updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 123
+ *                         firstName:
+ *                           type: string
+ *                           example: John
+ *                         middleName:
+ *                           type: string
+ *                           example: M
+ *                         lastName:
+ *                           type: string
+ *                           example: Doe
+ *                         userId:
+ *                           type: string
+ *                           example: A12345
+ *                         email:
+ *                           type: string
+ *                           format: email
+ *                           example: john.doe@example.com
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: 2025-07-03T12:34:56.789Z
+ *       400:
+ *         description: No valid fields provided for update or access token missing
+ *       401:
+ *         description: Authorization header missing or invalid
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error or JWT secret not configured
+ */
+
+/**
+ * @swagger
+ * /api/auth/user/get-user-details:
+ *   get:
+ *     summary: Get authenticated user details
+ *     description: Retrieves the details of the currently authenticated user including roles and status flags.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User details fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 123
+ *                         firstName:
+ *                           type: string
+ *                           example: John
+ *                         middleName:
+ *                           type: string
+ *                           example: M
+ *                         lastName:
+ *                           type: string
+ *                           example: Doe
+ *                         userId:
+ *                           type: string
+ *                           example: A12345
+ *                         email:
+ *                           type: string
+ *                           format: email
+ *                           example: john.doe@example.com
+ *                         isAdmin:
+ *                           type: boolean
+ *                           example: true
+ *                         isHOD:
+ *                           type: boolean
+ *                           example: false
+ *                         isLecturer:
+ *                           type: boolean
+ *                           example: true
+ *                         isStudent:
+ *                           type: boolean
+ *                           example: false
+ *                         isActive:
+ *                           type: boolean
+ *                           example: true
+ *                         isVerified:
+ *                           type: boolean
+ *                           example: true
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: 2025-07-03T12:34:56.789Z
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: 2025-07-03T13:00:00.123Z
+ *       400:
+ *         description: Access token is missing
+ *       401:
+ *         description: Authorization header missing or invalid, or token expired/invalid
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error or JWT secret not configured
+ */
+
 
 export default router 
