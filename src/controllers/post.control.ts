@@ -50,6 +50,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       postContent,
       excludeLecturers,
       excludeStudents,
+      excludeHOD
     } = req.body;
 
     if (!postTitle || !postContent) {
@@ -63,6 +64,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       creatorId,
       excludeLecturers,
       excludeStudents,
+      excludeHOD
     });
 
     customResponse.successResponse(res, 'Post created successfully', 201, { post: newPost });
@@ -99,7 +101,7 @@ export const editPost = async (req: Request, res: Response): Promise<void> => {
     }
 
     const { id } = req.params;
-    const { postTitle, postContent, excludeLecturers, excludeStudents } = req.body;
+    const { postTitle, postContent, excludeHOD, excludeLecturers, excludeStudents } = req.body;
 
     try {
       const post = await Post.findByPk(id);
@@ -115,6 +117,7 @@ export const editPost = async (req: Request, res: Response): Promise<void> => {
 
       if (postTitle !== undefined) post.postTitle = postTitle;
       if (postContent !== undefined) post.postContent = postContent;
+      if (excludeHOD !== undefined) post.excludeHOD = excludeHOD;
       if (excludeLecturers !== undefined) post.excludeLecturers = excludeLecturers;
       if (excludeStudents !== undefined) post.excludeStudents = excludeStudents;
 
@@ -208,6 +211,7 @@ export const getPostsForTimeline = async (req: Request, res: Response): Promise<
   const offset = (page - 1) * limit;
 
   const whereClause: any = {};
+  if (user.isHOD) whereClause.excludeHOD = { [Op.ne]: true };
   if (user.isLecturer) whereClause.excludeLecturers = { [Op.ne]: true };
   if (user.isStudent) whereClause.excludeStudents = { [Op.ne]: true };
 

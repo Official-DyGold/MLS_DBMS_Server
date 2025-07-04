@@ -17,6 +17,7 @@ export interface PostAttributes {
   creatorId: string;
   postTitle: string;
   postContent: string;
+  excludeHOD: boolean,
   excludeLecturers: boolean;
   excludeStudents: boolean
   createdAt?: Date;
@@ -68,6 +69,13 @@ export class Post extends Model<PostAttributes> {
         allowNull: false
     })
     excludeStudents!: boolean;
+
+    @Default(false)
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false
+    })
+    excludeHOD!: boolean;
 
     @CreatedAt
     @Default(DataType.NOW)
