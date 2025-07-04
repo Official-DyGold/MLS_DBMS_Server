@@ -43,6 +43,9 @@ router.get('/get-user-posts-by-id-or-email', authMiddleware, getUserPosts)
  *               postContent:
  *                 type: string
  *                 example: "Classes will resume on Monday."
+ *               excludeHOD:
+ *                 type: boolean
+ *                 example: false
  *               excludeLecturers:
  *                 type: boolean
  *                 example: false
@@ -87,6 +90,8 @@ router.get('/get-user-posts-by-id-or-email', authMiddleware, getUserPosts)
  *                 type: string
  *               postContent:
  *                 type: string
+ *               excludeHOD:
+ *                 type: boolean
  *               excludeLecturers:
  *                 type: boolean
  *               excludeStudents:
