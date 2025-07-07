@@ -10,6 +10,11 @@ export const config = {
     emailUser: process.env.EMAIL_USER || 'default_email_user',
     emailPassword: process.env.EMAIL_PASS || 'default_email_password',
     emailService: process.env.SERVICE_NAME || 'gmail', // e.g., 'gmail', 'yahoo', etc.
+
+    cloudinaryName: process.env.CLOUDINARY_CLOUD_NAME,
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
+
     db: {
         host: process.env.DB_HOST || 'localhost',
         port: Number(process.env.DB_PORT) || 5432,

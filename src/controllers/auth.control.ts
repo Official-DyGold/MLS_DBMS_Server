@@ -6,6 +6,7 @@ import { config } from "../config";
 import customResponse from "../utils/custom.response";
 import { isValidOTP, isValidEmail, isValidPassword, generateOTP, isOTPExpired } from './../utils/all.validator';
 import { sendWelcomeEmail, sendResetPasswordEmail, sendVerificationEmail } from "../services/email.service";
+import { streamUpload } from "../utils/cloudinary.utils"
 
 const JWT_SECRET = config.jwtSecret;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is not defined");
@@ -51,6 +52,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes from now
         const otpExpiryTime = '15 Minutes'
         const newUser = await User.create({
+            profilePicture: 'https://res.cloudinary.com/dat6vptxu/image/upload/v1750245256/defaultImage_dxivg3.jpg',
             firstName,
             middleName,
             lastName,
@@ -613,7 +615,8 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
             customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
             return;
         }
-        const decoded = jwt.verify(accessToken, secret) as { id: number, email: string };
+
+        const decoded = jwt.verify(accessToken, secret) as { id: string, email: string };
         const user = await User.findByPk(decoded.id);
 
         if (!user) {
@@ -621,19 +624,24 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
             return;
         }
 
-        // Only allow certain fields to be updated
-        const allowedFields = [
-            'firstName',
-            'middleName',
-            'lastName',
-            'userId',
-            'email',
-        ];
+        const allowedFields = ['firstName', 'middleName', 'lastName', 'userId', 'email'];
         let updated = false;
+
         for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
                 (user as any)[field] = req.body[field];
                 updated = true;
+            }
+        }
+
+        if (req.file) {
+            try {
+                const uploadResult = await streamUpload(req.file.buffer);
+                user.profilePicture = uploadResult.secure_url;
+                updated = true
+            } catch (uploadError) {
+                customResponse.errorResponse(res, 'Failed to upload profile picture', 500, {});
+                return;
             }
         }
 
@@ -642,7 +650,7 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
             return;
         }
 
-        await user.save(); // updatedAt will be set automatically by Sequelize
+        await user.save();
 
         customResponse.successResponse(res, 'User details updated successfully', 200, {
             user: {
@@ -652,6 +660,7 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
                 lastName: user.lastName,
                 userId: user.userId,
                 email: user.email,
+                profilePicture: user.profilePicture,
                 updatedAt: user.updatedAt
             }
         });
@@ -699,6 +708,7 @@ export const getUserDetails = async (req: Request, res: Response): Promise<void>
         customResponse.successResponse(res, 'User details fetched successfully', 200, {
             user: {
                 id: user.id,
+                profilePicture: user.profilePicture,
                 firstName: user.firstName,
                 middleName: user.middleName,
                 lastName: user.lastName,
@@ -713,5 +723,49 @@ export const getUserDetails = async (req: Request, res: Response): Promise<void>
         });
     } catch (error) {
         customResponse.errorResponse(res, `Invalid or expired token: ${error}`, 401, []);
+    }
+};
+
+/**
+ * Refresh access token using refresh token cookie
+ */
+export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+        customResponse.errorResponse(res, 'Refresh token is missing', 401, {});
+        return;
+    }
+
+    try {
+        const secret = JWT_REFRESH_SECRET;
+        if (!secret) {
+            customResponse.errorResponse(res, 'JWT refresh secret is not configured', 500, {});
+            return;
+        }
+        const decoded = jwt.verify(refreshToken, secret) as { id: number, email: string };
+
+        const user = await User.findByPk(decoded.id);
+        if (!user) {
+            customResponse.errorResponse(res, 'User not found', 404, {});
+            return;
+        }
+
+        if (!user.isActive) {
+            customResponse.errorResponse(res, 'User is not active', 403, {});
+            return;
+        }
+
+        const newAccessToken = jwt.sign(
+            { id: user.id, email: user.email },
+            JWT_SECRET as string,
+            { expiresIn: '1d' }
+        );
+
+        customResponse.successResponse(res, 'Access token refreshed successfully', 200, {
+            accessToken: newAccessToken
+        });
+    } catch (error) {
+        customResponse.errorResponse(res, `Invalid or expired refresh token: ${error}`, 401, {});
     }
 };

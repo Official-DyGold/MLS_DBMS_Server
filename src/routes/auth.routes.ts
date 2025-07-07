@@ -1,3 +1,4 @@
+
 import express from 'express'
 import { 
     createUser,
@@ -11,14 +12,17 @@ import {
     getUserRole,
     updateUserProfile,
     getUserDetails,
+    refreshToken,
 } from '../controllers/auth.control'
 import authMiddleware from '../middlewares/auth.middleware'
 import { otpRateLimiter, loginOrRegisterRateLimiter } from '../middlewares/rate.limiter'
+import { upload } from '../middlewares/upload.middleware'
 
 const router = express.Router();
 
 router.post('/register', loginOrRegisterRateLimiter, createUser)
 router.post('/user-login', otpRateLimiter, userLogin)
+router.post('/refresh-token', authMiddleware, refreshToken)
 router.post('/request-otp', otpRateLimiter, resentOTP)
 router.post('/request-password-reset', otpRateLimiter, OTPForPasswordReset)
 router.post('/verify-otp', authMiddleware, verifyOTP)
@@ -27,7 +31,7 @@ router.post('/change-password', authMiddleware, changePassword)
 router.post('/change-password-logged-in', authMiddleware, changePasswordWhenLoggedIn)
 router.get('/get-user-role', authMiddleware, getUserRole)
 router.get('/user/get-user-details', authMiddleware, getUserDetails)
-router.put('/user/update-profile', authMiddleware, updateUserProfile)
+router.put('/user/update-profile', authMiddleware, upload.single('profilePicture'), updateUserProfile)
 
 /**
  * @swagger
@@ -548,16 +552,15 @@ router.put('/user/update-profile', authMiddleware, updateUserProfile)
  * /api/auth/user/update-profile:
  *   put:
  *     summary: Update user profile details
- *     description: Allows an authenticated user to update their profile information such as first name, middle name, last name, user ID, and email. Only specified fields can be updated.
+ *     description: Allows an authenticated user to update their profile information such as first name, middle name, last name, user ID, email, and optionally upload a profile picture. Only specified fields will be updated.
  *     tags:
  *       - Authentication
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       description: Fields to update (at least one required)
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -577,6 +580,10 @@ router.put('/user/update-profile', authMiddleware, updateUserProfile)
  *                 type: string
  *                 format: email
  *                 example: john.doe@example.com
+ *               profilePicture:
+ *                 type: string
+ *                 format: binary
+ *                 description: Upload a profile picture (image file)
  *     responses:
  *       200:
  *         description: User details updated successfully
@@ -595,8 +602,8 @@ router.put('/user/update-profile', authMiddleware, updateUserProfile)
  *                       type: object
  *                       properties:
  *                         id:
- *                           type: integer
- *                           example: 123
+ *                           type: string
+ *                           example: 3c9fd558-1a3c-4c4a-aef1-89fd3fbd9b7e
  *                         firstName:
  *                           type: string
  *                           example: John
@@ -613,6 +620,9 @@ router.put('/user/update-profile', authMiddleware, updateUserProfile)
  *                           type: string
  *                           format: email
  *                           example: john.doe@example.com
+ *                         profilePicture:
+ *                           type: string
+ *                           example: https://res.cloudinary.com/user/image/upload/v1750245256/defaultImage.jpg
  *                         updatedAt:
  *                           type: string
  *                           format: date-time
@@ -624,7 +634,7 @@ router.put('/user/update-profile', authMiddleware, updateUserProfile)
  *       404:
  *         description: User not found
  *       500:
- *         description: Server error or JWT secret not configured
+ *         description: Server error or failed profile picture upload
  */
 
 /**
@@ -709,5 +719,46 @@ router.put('/user/update-profile', authMiddleware, updateUserProfile)
  *         description: Server error or JWT secret not configured
  */
 
+/**
+ * @swagger
+ * /api/auth/refresh-token:
+ *   post:
+ *     summary: Refresh authentication tokens
+ *     description: Issues a new access token and refresh token for an authenticated user, given a valid refresh token in the Authorization header.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *     responses:
+ *       200:
+ *         description: Tokens refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Tokens refreshed successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                     refreshToken:
+ *                       type: string
+ *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       400:
+ *         description: Refresh token is missing or invalid
+ *       401:
+ *         description: Authorization header missing or invalid / Token expired
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 
 export default router 

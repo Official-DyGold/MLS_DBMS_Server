@@ -16,7 +16,7 @@ router.put('/edit-post/:id', authMiddleware, editPost)
 router.delete('/delete-post/:id', authMiddleware, deletePost)
 router.get('/user-timeline', authMiddleware, getPostsForTimeline)
 router.get('/get-my-posts', authMiddleware, getUserPosts)
-router.get('/get-user-posts-by-id-or-email', authMiddleware, getUserPosts)
+router.get('/get-user-posts-by-id-or-email', authMiddleware, getPostsByUser)
 
 /**
  * @swagger
@@ -171,8 +171,6 @@ router.get('/get-user-posts-by-id-or-email', authMiddleware, getUserPosts)
  *               properties:
  *                 posts:
  *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Post'
  *                 total:
  *                   type: integer
  *                 page:
@@ -205,8 +203,6 @@ router.get('/get-user-posts-by-id-or-email', authMiddleware, getUserPosts)
  *               properties:
  *                 posts:
  *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Post'
  *       401:
  *         description: Unauthorized - missing or invalid token
  *       500:
@@ -247,8 +243,6 @@ router.get('/get-user-posts-by-id-or-email', authMiddleware, getUserPosts)
  *               properties:
  *                 posts:
  *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Post'
  *       400:
  *         description: Bad request - email or userId required
  *       404:

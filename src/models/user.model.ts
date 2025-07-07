@@ -9,6 +9,7 @@ import {
 
 export interface UserAttributes {
     id?: string;
+    profilePicture: string;
     firstName: string;
     middleName?: string;
     lastName: string;
@@ -40,6 +41,13 @@ export class User extends Model<UserAttributes, UserAttributes> {
         allowNull: false,
     })
     id!: string;
+
+    @Column({
+        type: DataType.STRING,
+        allowNull: false,
+        defaultValue: 'https://res.cloudinary.com/dat6vptxu/image/upload/v1750245256/defaultImage_dxivg3.jpg'
+    })
+    profilePicture!: string;
 
     @Column({
         type: DataType.STRING,
