@@ -224,6 +224,8 @@ export const getPostsForTimeline = async (req: Request, res: Response): Promise<
     });
 
     customResponse.successResponse(res, 'Posts fetched successfully', 200, {
+      user:user.userId,
+      userDP: user.profilePicture,
       posts: posts.rows,
       total: posts.count,
       page,
