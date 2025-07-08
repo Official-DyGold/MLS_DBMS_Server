@@ -185,24 +185,26 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
  */
 export const getPostsForTimeline = async (req: Request, res: Response): Promise<void> => {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    customResponse.errorResponse(res, 'Missing token', 401, {});
+  if (!authHeader?.startsWith("Bearer ")) {
+    customResponse.errorResponse(res, "Missing token", 401, {});
     return;
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
   let user: User | null = null;
+
   try {
     const secret = JWT_SECRET;
     if (!secret) {
-      customResponse.errorResponse(res, 'JWT secret is not configured', 500, {});
+      customResponse.errorResponse(res, "JWT secret is not configured", 500, {});
       return;
     }
+
     const decoded = jwt.verify(token, secret) as { id: string };
     user = await User.findByPk(decoded.id);
     if (!user) throw new Error();
   } catch {
-    customResponse.errorResponse(res, 'Invalid token', 401, {});
+    customResponse.errorResponse(res, "Invalid token", 401, {});
     return;
   }
 
@@ -218,14 +220,19 @@ export const getPostsForTimeline = async (req: Request, res: Response): Promise<
   try {
     const posts = await Post.findAndCountAll({
       where: whereClause,
-      order: [['createdAt', 'DESC']],
+      order: [["createdAt", "DESC"]],
       limit,
       offset,
+      include: [
+        {
+          model: User,
+          as: "creator", // alias must match the association
+          attributes: ['firstName', 'middleName', 'lastName', "userId", "profilePicture"], // pick only what’s needed
+        },
+      ],
     });
 
-    customResponse.successResponse(res, 'Posts fetched successfully', 200, {
-      user:user.userId,
-      userDP: user.profilePicture,
+    customResponse.successResponse(res, "Posts fetched successfully", 200, {
       posts: posts.rows,
       total: posts.count,
       page,

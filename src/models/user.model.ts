@@ -4,8 +4,10 @@ import {
     Model,
     DataType,
     Default,
-    PrimaryKey
+    PrimaryKey,
+    HasMany
 } from 'sequelize-typescript';
+import { Post } from './post.model';
 
 export interface UserAttributes {
     id?: string;
@@ -160,6 +162,9 @@ export class User extends Model<UserAttributes, UserAttributes> {
         allowNull: true
     })
     deletedAt?: Date;
+
+    @HasMany(() => Post, { foreignKey: "creatorId", as: "posts" })
+    posts?: Post[];
 
     // Add any associations here if needed
     // For example, if you have a Profile model associated with User
